@@ -13,7 +13,7 @@ class SemanticClass(object) :
 		
 class Lexicon(object) :
 	"""object to encapsulate POVs"""
-	def __init__(self,cloudsize=20) :
+	def __init__(self,cloudsize=20,vector_size=20) :
 		self.cloudsize=cloudsize
 		self._lexi={}
 
@@ -26,8 +26,8 @@ class Lexicon(object) :
 		self.inter_document_frequency={}
 		
 		#{category : {token : value}}
-		self._lexi['republican']={}
-		self._lexi['democrat']={}
+		self._lexi['republican']={}  	#pertains to [skew,1] continuum
+		self._lexi['democrat']={}	#pertains to [0,skew] continuum
 		for i in range(0,cloudsize+1) :
 			r1=('r' + str(i))
 			d1=('d' + str(i))
@@ -50,7 +50,12 @@ class Lexicon(object) :
 	def clear_idf_vector(self) : self.inter_document_frequency = {}
 	
 	
+	def remove_from_idf(self,term=None) :
+		self.inter_document_frequency[term]-=1
 	
+	def add_to_idf(self,term=None) :
+		self.inter_document_frequency[term]+=1
+		
 	def cosine_distance(self,vector1={},vector2={}) :
 		"""
 			Determine the cosine distance between two term-term_frequency vectors
@@ -135,30 +140,24 @@ class Lexicon(object) :
 	def shuffle_lexicon(self) :
 		random.shuffle(self._randomorder)
 		
-	def get_skewed_opinion(self,skew=0.0) :
-		sentiment=[]
-		nr_pos=0
-		nr_neg=0
-		if skew>0 :
-			nr_neg= int(math.fabs(skew-1)*self.cloudsize)
-			nr_pos=self.cloudsize-nr_neg
-		if skew == 0 :
-			nr_pos=self.cloudsize/2
-			nr_neg=self.cloudsize/2
-		if skew <0 :
-			nr_pos=int(math.fabs(skew+1)*self.cloudsize)
-			nr_neg=self.cloudsize-nr_pos
-		#print str(nr_neg) + ' / ' + str(nr_pos)
-		rep=[ t.lower() for t in self._lexi['republican']]
-		dem=[ t.lower() for t in self._lexi['democrat']]
-		random.shuffle(rep)	
-		random.shuffle(dem)
-		sentiment.extend(rep[0:nr_neg])
-		sentiment.extend(dem[0:nr_pos])
-		#add term frequencies to the IDF
-		for t in sentiment : self.inter_document_frequency[t]+=1
-		random.shuffle(sentiment)
-		return sentiment
+	def get_skewed_opinion(self,skew=0.0,sz=20) :
+		kr=list(self._lexi['republican'].keys())	#pertains to [skew,1] continuum
+		ka=list(self._lexi['democrat'].keys())	        #pertains to [0,skew] continuum
+		random.shuffle(kr)
+		random.shuffle(ka)
+		term_vector={}
+		for i in range(0,sz) :
+			t=''
+			if random.random() >= skew :
+				j=random.randint(0,len(kr)-1)
+				t=kr[j]
+			else :
+				j=random.randint(0,len(ka)-1)
+				t=ka[j]
+			if t not in term_vector : term_vector[t]=0.0
+			term_vector[t]+=1
+			self.inter_document_frequency[t]+=1
+		return term_vector 		
 		
 	def get_random_opinion(self, wordcount=20) :
 		"""
