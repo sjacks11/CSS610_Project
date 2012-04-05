@@ -30,6 +30,10 @@ an agent having a high ego-involvement can be formalized as an agent where latit
 The opinions are drawn from a uniform distribution between [?1;1].
 Vary U and T between 0.1 and the maximum of 2.0
 
+
+We suspect that adding a network aspect to the model will increase or expedite network polarization?
+
+
 """
 class Agent(object) :
     def __init__(self,uid=None,lex=None,lattitude_of_acceptance=0.0, lattitude_of_rejection=0.0,opinion_skew=0.0) :
@@ -48,6 +52,18 @@ class Agent(object) :
     
     def get_thought_vector(self) :
         return self._thought_vector
+    
+    def listen_to_schpeal(self,other_agent=None) :
+        """
+        calculate distance between my opinion and the talker's opinion
+        if acceptable - then by increment the frequency of a common term and decrement the frequency of a difference term
+        if rejectable - then decrement frequency of a common term and increment the frequency of a term in the difference
+        (MAYBE a strategy object?)
+        
+        note the 'private' methods below to add or remove a word from the word cloud
+        
+        """
+        
         
     def change_opinion(self,other_agent=None,direction=0.0) :
         """TODO inspect another agent's thoughts and change in the direction indicated """
@@ -104,6 +120,10 @@ class EgoInvolvementInitializationStrategy(object) :
 
 #TODO TEST
 class AgentBuilder(object) :
+    
+    """
+    john g - test the  
+    """
     
     def __init__(self,polarity_strategy=None,ego_involvement_strategy=None,lexicon_size=20,agent_vector_size=20) :
         self.uidgen=UID()
