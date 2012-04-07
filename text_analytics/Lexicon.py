@@ -1,6 +1,5 @@
 import random
 import math
-import Opinion
 import csv
 
 class SemanticClass(object) :

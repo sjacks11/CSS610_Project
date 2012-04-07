@@ -1,6 +1,7 @@
 import random
 import math
 import Lexicon
+import networkx
 
 """
 An Agent is the encapsulation of an personal identity and an opinion - represented as a vector
@@ -187,23 +188,25 @@ class AgentBuilder(object) :
             PS = PolarityInitializationStrategy()
             a=Agent(self.uidgen.nextId(),lex=self.lex,lattitude_of_acceptance=lattitudes[0], lattitude_of_rejection=lattitudes[1], opinion_skew=PS.get_skew())
             agents.append(a)
-
+        
+        social_net=None
         # Create the social network
         if self.getNetworkType() == "ErdosRenyi":
-            self.createErdosRenyiSocialNetwork(agents)
+            social_net=self.createErdosRenyiSocialNetwork(agents)
         elif self.getNetworkType() == "Lattice":
-            self.createLatticeSocialNetwork(agents)
+            ssocial_net=elf.createLatticeSocialNetwork(agents)
         elif self.getNetworkType() == "RealWorld":
-            self.createRealWorldNetwork(agents)
+            social_net=self.createRealWorldNetwork(agents)
         else:
             # If no valid social network is defined, then delete any existing social netwwork
             self.clearSocialNetworks(agents)
         
-        return agents
+        return agents,social_net
         
     def createErdosRenyiSocialNetwork(self,agents):
         # This method creates the social network between the agents
         # This method uses the Erdos-Renyi method of creating the social network
+        social_graph=networkx.Graph()
 
         # Clear out any existing social networks
         self.clearSocialNetworks(agents)
@@ -218,13 +221,15 @@ class AgentBuilder(object) :
                 if random.random() < socialNetworkProbability:
                     agents[i].addNetworkMember(j)
                     agents[j].addNetworkMember(i)
-
+                    social_graph.add_edge(agents[i],agents[j])
+        return social_graph
+    
     def createLatticeSocialNetwork(self,agents):
         # This method creates a lattice social network between the agents
         
         # Clear out any existing social networks
         self.clearSocialNetworks(agents)
-
+        social_graph=networkx.Graph()
         # Define the number of agents to partner with the current one
         # Since this is a lattice, they will be paired 1/2 below and 1/2 above the current value
         numPartners = 10 #NOTE: MUST BE AN EVEN VALUE
@@ -235,29 +240,39 @@ class AgentBuilder(object) :
             if (i > (numPartners/2)-1) and (i < (self.getNumAgents()-(numPartners/2))):
                 for j in range((numPartners/2)+1,1,-1):
                     agents[i].addNetworkMember(i+1-j)
+                    social_graph.add_edge(agents[i],agents[i+1-j])
                 for j in range(1,(numPartners/2)+1):
                     agents[i].addNetworkMember(i+j)
+                    social_graph.add_edge(agents[i],agents[i+j])
             # If the agent is one of the first 5, then their lowest agents will be from the highest on the list (the network is circular)
             elif (i <= (numPartners/2)-1):
                 for j in range((numPartners/2),i,-1): # Compute values below 0
                     agents[i].addNetworkMember(self.getNumAgents()+i-j)
+                    social_graph.add_edge(agents[i],agents[self.getNumAgents()+i-j])
                 for j in range(i,0,-1): # Compute values between 0 and the current value (i)
                     agents[i].addNetworkMember(i-j)
+                    social_graph.add_edge(agents[i],agents[i-j])
                 for j in range(0,(numPartners/2)): # Add the values above the current value (i)
                     agents[i].addNetworkMember(i+1+j)
+                    social_graph.add_edge(agents[i],agents[i+1+j])
+                    
             # If the agent is one of the last (numPartners/2), then their highest agents will be from the lowest on the list (the network is circular)
             elif (i >= (self.getNumAgents()-(numPartners/2))):
                 for j in range((numPartners/2),0,-1): # Add the values below the current value (i)
                     agents[i].addNetworkMember(i-j)
+                    social_graph.add_edge(agents[i],agents[i-j])
                 for j in range(i,self.getNumAgents()-1): # Add the values above the current value (i), but below 1000
                     agents[i].addNetworkMember(j+1)
+                    social_graph.add_edge(agents[i],agents[j+1])
                 for j in range(self.getNumAgents()-(numPartners/2)-1,i): # Add the values starting from 0
                     agents[i].addNetworkMember(j - (self.getNumAgents() - 1) + (numPartners/2))
+                    social_graph.add_edge(agents[i],agents[j - (self.getNumAgents() - 1) + (numPartners/2)])
+        return social_graph
 
     def createRealWorldNetwork(self,agents):
         # This method creates a Lattice Network and then converts that network to real world by replacing a specific percentage of the links to random
         self.createLatticeSocialNetwork(agents)
-
+        social_graph=networkx.Graph()
         # Define the probability for rewiring the network 
         rewireProbability = 0.1
 
@@ -274,10 +289,13 @@ class AgentBuilder(object) :
                 if random.random() < rewireProbability:
                     # Pick a random agent to add to the network instead
                     agents[i].addNetworkMember(random.randint(0,self.getNumAgents()-1))
+                    social_graph.add_edge(agents[i],agents[random.randint(0,self.getNumAgents()-1)])
                 else:
                     # Add back the original agent
                     agents[i].addNetworkMember(j)
-
+                    social_graph.add_edge(agents[i],agents[j])
+        return social_graph
+    
     def clearSocialNetworks(self,agents):
         # This method clears the social network for each agent
         for i in range(self.getNumAgents()):
@@ -304,7 +322,8 @@ class AgentBuilder(object) :
 AB = AgentBuilder()
 
 # Request agents from AB. The createAgents methods expects to see a number of agents and a type of Network to create.
-theAgents = AB.createAgents(50,"ErdosRenyi")
+theAgents,agent_social_net = AB.createAgents(50,"ErdosRenyi")
+print str(len(networkx.connected_component_subgraphs(agent_social_net)))
 
 # Print out the agents to see what is going on with them
 for i in theAgents:
@@ -312,3 +331,11 @@ for i in theAgents:
 
 # Pair the agents up randomly
 AB.randomlyActivateAgents(theAgents)
+
+
+print str(len(networkx.connected_component_subgraphs(agent_social_net)))
+
+print 'degree...'
+for a in agent_social_net.nodes() :
+    print str(a.getUID()) + ': ' + str(agent_social_net.degree(a))
+    
