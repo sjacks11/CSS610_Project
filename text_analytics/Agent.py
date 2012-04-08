@@ -57,10 +57,50 @@ class Agent(object) :
         return self._thought_vector
     
     def listenToSchpealFrom(self,talkingAgent) :
-
+        debug=True
         # for test purposes, prove that the agents are being selected by printing them out
-        print "Agent " + str(self.getUID()) + " is listening to " + str(talkingAgent.getUID()) + " blab about their beliefs."
-
+        if debug : print "Agent " + str(self.getUID()) + " is listening to " + str(talkingAgent.getUID()) + " blab about their beliefs."
+        
+        # M E T R I C   1  - determine whether a change will occur
+        #calculate distance between my opinion and the talker's opinion
+        opinion_distance=self.lexicon.cosine_distance(self.get_thought_vector(),talkingAgent.get_thought_vector())
+        change_direction=0.0
+        #if acceptable - then by increment the frequency of a common term and decrement the frequency of a difference term
+        if opinion_distance < self.lattitude_of_acceptance :
+            """my word cloud becomes more like the other talking agent's word cloud"""
+            change_direction = 1.0
+        #if rejectable - then decrement frequency of a common term and increment the frequency of a term in the difference
+        if opinion_distance > self.lattitude_of_rejection :
+            """my word cloud becomes more different than the talking agent's word cloud"""
+            change_direction = -1.0
+        # E N D   M E T R I C   1
+        
+        # E F F E C T   C H A N G E  ( i f f   c h a n g e _ d i r e c t i o n   i s   n o n z e r o )
+        if change_direction != 0 :
+            otherkeys=talkingAgent.get_thought_vector().keys()
+            mykeys=self.get_thought_vector().keys()            
+            ivector={}
+            import operator
+            
+            
+            if change_direction > 0 :
+                difference=set(otherkeys).difference(set(mykeys))
+                for t in difference : ivector[t]=talkingAgent.get_thought_vector()[t]
+                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
+                target_term=sorted_by_freq.pop()[0]
+                if debug : print 'add term ' + target_term
+                self._add_word(target_term)
+                
+            if change_direction < 0 :
+                intersection=set(otherkeys).intersection(set(mykeys))
+                for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
+                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
+                target_term=sorted_by_freq.pop()[0]       
+                if debug : print 'remove term ' + target_term   
+                self._remove_word(target_term)
+                
+        
+        # E N D   E F F E C T   C H A N G E 
         """
         calculate distance between my opinion and the talker's opinion
         ##SPJ - Could not determine the property of the agent which represents the agent's opinion.
@@ -75,14 +115,15 @@ class Agent(object) :
     def change_opinion(self,other_agent=None,direction=0.0) :
         """TODO inspect another agent's thoughts and change in the direction indicated """
         
+        
     def _remove_word(self,term=None) :
         self._thought_vector[term]-=1
-        lex.remove_from_idf(term)
+        self.lexicon.remove_from_idf(term)
         
     def _add_word(self,term=None) :
         if term not in self._thought_vector : self._thought_vector[term]=0
         self._thought_vector[term]+=1
-        lex.add_to_idf(term)
+        self.lexicon.add_to_idf(term)
 
     def getUID(self):
         return self._uid
