@@ -37,12 +37,20 @@ We suspect that adding a network aspect to the model will increase or expedite n
 
 
 """
+
+MOVE_AWAY_FROM = -1
+MOVE_CLOSER_TO = 1
+DO_NOTHING = 0
+debug=True
+
 class Agent(object) :
     def __init__(self,uid=None,lex=None,lattitude_of_acceptance=0.0, lattitude_of_rejection=0.0,opinion_skew=0.0) :
         self._uid=uid
         self.lattitude_of_acceptance=lattitude_of_acceptance
         self.lattitude_of_rejection=lattitude_of_rejection
         self.lexicon=lex
+        
+        #thought vector is a dict with k-v pairs --> term <string> : frequency <int>
         if opinion_skew != 0.0 :
             self._thought_vector=lex.get_skewed_opinion(opinion_skew,lex.cloudsize)
         else :
@@ -57,48 +65,73 @@ class Agent(object) :
         return self._thought_vector
     
     def listenToSchpealFrom(self,talkingAgent) :
-        debug=True
+        global debug
         # for test purposes, prove that the agents are being selected by printing them out
         if debug : print "Agent " + str(self.getUID()) + " is listening to " + str(talkingAgent.getUID()) + " blab about their beliefs."
+        
+        global MOVE_AWAY_FROM
+        global MOVE_CLOSER_TO
+        global DO_NOTHING
         
         # M E T R I C   1  - determine whether a change will occur
         #calculate distance between my opinion and the talker's opinion
         opinion_distance=self.lexicon.cosine_distance(self.get_thought_vector(),talkingAgent.get_thought_vector())
-        change_direction=0.0
+        change_direction=DO_NOTHING
         #if acceptable - then by increment the frequency of a common term and decrement the frequency of a difference term
         if opinion_distance < self.lattitude_of_acceptance :
             """my word cloud becomes more like the other talking agent's word cloud"""
-            change_direction = 1.0
+            change_direction = MOVE_CLOSER_TO
         #if rejectable - then decrement frequency of a common term and increment the frequency of a term in the difference
         if opinion_distance > self.lattitude_of_rejection :
             """my word cloud becomes more different than the talking agent's word cloud"""
-            change_direction = -1.0
+            change_direction = MOVE_AWAY_FROM
         # E N D   M E T R I C   1
         
         # E F F E C T   C H A N G E  ( i f f   c h a n g e _ d i r e c t i o n   i s   n o n z e r o )
-        if change_direction != 0 :
-            otherkeys=talkingAgent.get_thought_vector().keys()
-            mykeys=self.get_thought_vector().keys()            
+        if change_direction != DO_NOTHING :
+            other_agent_words=talkingAgent.get_thought_vector().keys()
+            my_words=self.get_thought_vector().keys()            
             ivector={}
+            dvector={}
             import operator
             
+            #difference = other_agent_words \ my_words if I'm moving closer to your opinion
+            if change_direction == MOVE_CLOSER_TO : 
+                difference=set(other_agent_words).difference(set(my_words))
+                for t in difference : dvector[t]=talkingAgent.get_thought_vector()[t]
+            else : #difference is my words \ other agent's words
+                difference=set(my_words).difference(set(other_agent_words))
+                for t in difference : dvector[t]=self.get_thought_vector()[t]
             
-            if change_direction > 0 :
-                difference=set(otherkeys).difference(set(mykeys))
-                for t in difference : ivector[t]=talkingAgent.get_thought_vector()[t]
-                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
-                target_term=sorted_by_freq.pop()[0]
-                if debug : print 'add term ' + target_term
-                self._add_word(target_term)
+            #intersection = other_agent_words INTERSECT my_words
+            intersection=set(other_agent_words).intersection(set(my_words))
+            
+            #we're exactly the same 
+            #get the hi-freq term in the difference set
+            sorted_by_freq = sorted(dvector.iteritems(), key=operator.itemgetter(1))
+            target_difference_term=sorted_by_freq.pop()[0]
+            
+            #get hi-freq term in the intersection set
+            if len(intersection) == 0 or len(difference) == 0 :
+                print 'empty intersection'
+                #the case is that there's nothing in common at all - or everything in common
+                #therefore solidify my own beliefs - increment my highest frequency term and decrement my least frequent term
                 
-            if change_direction < 0 :
-                intersection=set(otherkeys).intersection(set(mykeys))
-                for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
-                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
-                target_term=sorted_by_freq.pop()[0]       
-                if debug : print 'remove term ' + target_term   
-                self._remove_word(target_term)
+            for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
+            sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
+            target_interection_term=sorted_by_freq.pop()[0]               # this breaks if len(intersection ) == 0 
+
+            if debug :
+                print 'direction ' + str(change_direction)
+            if change_direction ==  MOVE_CLOSER_TO :
+                if debug : print ' remove ' + target_interection_term + ' and add ' + target_difference_term
+                self._remove_word(target_interection_term)
+                self._add_word(target_difference_term)
                 
+            if change_direction == MOVE_AWAY_FROM :
+                if debug : print ' remove ' +  target_difference_term + ' and add ' +   target_interection_term
+                self._remove_word(target_interection_term)
+                self._add_word(target_difference_term)                
         
         # E N D   E F F E C T   C H A N G E 
         """
@@ -115,12 +148,16 @@ class Agent(object) :
     def change_opinion(self,other_agent=None,direction=0.0) :
         """TODO inspect another agent's thoughts and change in the direction indicated """
         
-        
     def _remove_word(self,term=None) :
-        self._thought_vector[term]-=1
-        self.lexicon.remove_from_idf(term)
+        if debug : print 'remove ' + term
+        if term in self._thought_vector :
+            self._thought_vector[term]-=1 
+            self.lexicon.remove_from_idf(term)
+        else :
+            print 'term: ' + term + ' not in agent ' + str(self.getUID()) + "'s word cloud"
         
     def _add_word(self,term=None) :
+        if debug : print 'add ' + term
         if term not in self._thought_vector : self._thought_vector[term]=0
         self._thought_vector[term]+=1
         self.lexicon.add_to_idf(term)
