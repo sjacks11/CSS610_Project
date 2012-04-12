@@ -9,6 +9,13 @@ An Agent is the encapsulation of an personal identity and an opinion - represent
 Each individual i has got an opinion (an attitude)
 xi, 
 
+If the {advocate}*d-->{position}* is close to the initial {position}* <-- of the receiver, it is assumed that this position falls
+within the {latitude of acceptance}* of the {receiver}*.  As a result ==> , the receiver is likely {p_assimilate}* to shift in the
+direction of the advocated position {assimilation). If the {advocate}d position is distant to the initial position of the receiver, it is assumed that this
+position falls within the latitude of rejectance of the receiver. As a result, the receiver is likely to shift
+away from the advocated posi- tion {contrast).
+
+
 and a threshold determining the
 latitude of rejection ti with ti > ui .Varying the values of ti and ui allows for modeling agents
 having different attitude structures. For example, an agent having a high ego-involvement
@@ -38,9 +45,9 @@ We suspect that adding a network aspect to the model will increase or expedite n
 
 """
 
-MOVE_AWAY_FROM = -1
-MOVE_CLOSER_TO = 1
-DO_NOTHING = 0
+MOVE_AWAY_FROM = -1  #CONTRAST (v)
+MOVE_CLOSER_TO = 1  #ASSIMILATE
+DO_NOTHING = 0       #NON-COMMITMENT
 debug=True
 
 class Agent(object) :
@@ -64,6 +71,7 @@ class Agent(object) :
     def get_thought_vector(self) :
         return self._thought_vector
     
+    #evaluate the message (central processing) and the messenger (peripheral processing)
     def listenToSchpealFrom(self,talkingAgent) :
         global debug
         # for test purposes, prove that the agents are being selected by printing them out
