@@ -2,7 +2,7 @@ import random
 import math
 import Lexicon
 import networkx
-
+import operator
 """
 An Agent is the encapsulation of an personal identity and an opinion - represented as a vector
 
@@ -45,9 +45,9 @@ We suspect that adding a network aspect to the model will increase or expedite n
 
 """
 
-MOVE_AWAY_FROM = -1  #CONTRAST (v)
-MOVE_CLOSER_TO = 1  #ASSIMILATE
-DO_NOTHING = 0       #NON-COMMITMENT
+CONTRAST = -1  #CONTRAST (v)
+ASSIMILATE = 1  #ASSIMILATE
+NON_COMMITMENT = 0       #NON-COMMITMENT
 debug=True
 
 class Agent(object) :
@@ -70,41 +70,47 @@ class Agent(object) :
     
     def get_thought_vector(self) :
         return self._thought_vector
-    
+    def reinforce_my_position(self) :
+        """increase the frequency of the lowest frequency term"""
+        sorted_by_freq = sorted(self._thought_vector.iteritems(), key=operator.itemgetter(1))
+        target_term=sorted_by_freq[0][0]
+        self._add_term(target_term)
+        
+        
     #evaluate the message (central processing) and the messenger (peripheral processing)
     def listenToSchpealFrom(self,talkingAgent) :
         global debug
         # for test purposes, prove that the agents are being selected by printing them out
         if debug : print "Agent " + str(self.getUID()) + " is listening to " + str(talkingAgent.getUID()) + " blab about their beliefs."
         
-        global MOVE_AWAY_FROM
-        global MOVE_CLOSER_TO
-        global DO_NOTHING
+        global CONTRAST
+        global ASSIMILATE
+        global NON_COMMITMENT
         
         # M E T R I C   1  - determine whether a change will occur
         #calculate distance between my opinion and the talker's opinion
         opinion_distance=self.lexicon.cosine_distance(self.get_thought_vector(),talkingAgent.get_thought_vector())
-        change_direction=DO_NOTHING
+        change_direction=NON_COMMITMENT
         #if acceptable - then by increment the frequency of a common term and decrement the frequency of a difference term
         if opinion_distance < self.lattitude_of_acceptance :
             """my word cloud becomes more like the other talking agent's word cloud"""
-            change_direction = MOVE_CLOSER_TO
+            change_direction = ASSIMILATE
         #if rejectable - then decrement frequency of a common term and increment the frequency of a term in the difference
         if opinion_distance > self.lattitude_of_rejection :
             """my word cloud becomes more different than the talking agent's word cloud"""
-            change_direction = MOVE_AWAY_FROM
+            change_direction = CONTRAST
         # E N D   M E T R I C   1
         
         # E F F E C T   C H A N G E  ( i f f   c h a n g e _ d i r e c t i o n   i s   n o n z e r o )
-        if change_direction != DO_NOTHING :
+        if change_direction != NON_COMMITMENT :
             other_agent_words=talkingAgent.get_thought_vector().keys()
             my_words=self.get_thought_vector().keys()            
             ivector={}
             dvector={}
-            import operator
             
+            # F O R M   S E T S   F O R   D I F F E R E N C E   A N D   I N T E R S E C T I O N          
             #difference = other_agent_words \ my_words if I'm moving closer to your opinion
-            if change_direction == MOVE_CLOSER_TO : 
+            if change_direction == ASSIMILATE : 
                 difference=set(other_agent_words).difference(set(my_words))
                 for t in difference : dvector[t]=talkingAgent.get_thought_vector()[t]
             else : #difference is my words \ other agent's words
@@ -114,32 +120,32 @@ class Agent(object) :
             #intersection = other_agent_words INTERSECT my_words
             intersection=set(other_agent_words).intersection(set(my_words))
             
-            #we're exactly the same 
-            #get the hi-freq term in the difference set
-            sorted_by_freq = sorted(dvector.iteritems(), key=operator.itemgetter(1))
-            target_difference_term=sorted_by_freq.pop()[0]
-            
-            #get hi-freq term in the intersection set
             if len(intersection) == 0 or len(difference) == 0 :
                 print 'empty intersection'
+                self.reinforce_my_position()
                 #the case is that there's nothing in common at all - or everything in common
                 #therefore solidify my own beliefs - increment my highest frequency term and decrement my least frequent term
+            else :                    
+                #get the hi-freq term in the difference set
+                sorted_by_freq = sorted(dvector.iteritems(), key=operator.itemgetter(1))
+                target_difference_term=sorted_by_freq.pop()[0]
                 
-            for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
-            sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
-            target_interection_term=sorted_by_freq.pop()[0]               # this breaks if len(intersection ) == 0 
-
-            if debug :
-                print 'direction ' + str(change_direction)
-            if change_direction ==  MOVE_CLOSER_TO :
-                if debug : print ' remove ' + target_interection_term + ' and add ' + target_difference_term
-                self._remove_word(target_interection_term)
-                self._add_word(target_difference_term)
-                
-            if change_direction == MOVE_AWAY_FROM :
-                if debug : print ' remove ' +  target_difference_term + ' and add ' +   target_interection_term
-                self._remove_word(target_interection_term)
-                self._add_word(target_difference_term)                
+                #get hi-freq term in the intersection set
+                for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
+                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
+                target_interection_term=sorted_by_freq.pop()[0]               # this breaks if len(intersection ) == 0 
+    
+                if debug :
+                    print 'direction ' + str(change_direction)
+                if change_direction ==  ASSIMILATE :
+                    if debug : print ' remove ' + target_interection_term + ' and add ' + target_difference_term
+                    self._remove_word(target_interection_term)
+                    self._add_word(target_difference_term)   #add one of the other guy's terms
+                    
+                if change_direction == CONTRAST :
+                    if debug : print ' remove ' +  target_difference_term + ' and add ' +   target_interection_term
+                    self._remove_word(target_interection_term)
+                    self._add_word(target_difference_term)    #add one of my terms            
         
         # E N D   E F F E C T   C H A N G E 
         """
