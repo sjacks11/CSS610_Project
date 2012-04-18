@@ -12,9 +12,19 @@ class SemanticClass(object) :
 		
 class Lexicon(object) :
 	"""object to encapsulate POVs"""
-	def __init__(self,cloudsize=20,vector_size=20) :
+	def __init__(self,cloudsize=20,vector_size=20, filePath = None) :
 		self.cloudsize=cloudsize
 		self._lexi={}
+
+		# The path where the lexicon will be written.
+		# This should be a txt file, but Python doesn't care what you call it
+		self._filePath = filePath
+
+                # The list to store the lexicon within.
+                # When the caller executes the XX method, then the file at _filePath will be opened, this value will be written to the file
+                self._lexR = []
+                self._lexD = []
+                self._lexOutput = []
 
 		#self._lexi['republican']=["constutionality", "cuttaxes", "secondamendment", "freeenterprise", "smallgovernment", "religiousfreedom", "drillherenow", "domesticoil", "overturnroevswade", "prochoice" , 'rep1' ,'rep2' ,'rep3']
 		#self._lexi['democrat']=["taxthewealthy", "equalrights", "economicequality", "closeguantanamo", "epa", "nodrillinginwildlife", "alternativeenergy", "repealDNDT" ,'dem1','dem2','dem3','dem4']
@@ -44,6 +54,13 @@ class Lexicon(object) :
 				self._lexi_lookup[value]=key
 				self._randomorder.append(value)
 		self.shuffle_lexicon()
+
+		# Create the header row for the output file.
+                self._lexR = sorted(self._lexi['republican'].keys())
+                self._lexD = sorted(self._lexi['democrat'].keys())
+                tempList = list(self._lexR)
+                tempList.extend(self._lexD)
+                self._lexOutput.append(tempList)
 	
 	def get_idf_vector(self) : return self.inter_document_frequency
 	def clear_idf_vector(self) : self.inter_document_frequency = {}
@@ -55,6 +72,42 @@ class Lexicon(object) :
 	def add_to_idf(self,term=None) :
 		self.inter_document_frequency[term]+=1
 		
+        def recordLexi(self):
+                # This method allows the user to save the current Lexicon values to the _lexOutput list of lists which is used by the writeTxtLexicon method
+                # Add the current lexicon values to a temp list
+                tempList = []
+                # Add all of the republican values to the output list
+                for i in self._lexR:
+                        tempList.append(repr(self._lexi['republican'][i]))
+                # Add all of the democratic values to the output list
+                for i in self._lexD:
+                        tempList.append(repr(self._lexi['democrat'][i]))
+
+                # Add these values to the list
+                self._lexOutput.append(tempList)
+
+        def writeTxtLexicon(self, filePath = None):
+                # Make sure that you know where you will save the file
+                if self._filePath == None and filePath == None:
+                        print "No file path has been defined for the output file"
+                        return
+                # If the user already had defined a filePath, but sends one to this method, then use the newer one
+                if filePath != None:
+                        outputfilename = filePath
+                else:
+                        outputfilename = self._filePath
+                        
+                # Open the specified file for writing
+                fout=open(outputfilename,'w+')
+
+                # Go through each record in the exising output list
+                for i in self._lexOutput:
+                        # Convert the record to a comma-seperated string and write that to the output file
+                        fout.write(",".join(i) + "\n")
+
+                # Close the output file
+                fout.close()        
+
 	def cosine_distance(self,vector1={},vector2={}) :
 		"""
 			Determine the cosine distance between two term-term_frequency vectors
