@@ -74,7 +74,7 @@ class Agent(object) :
         """increase the frequency of the lowest frequency term"""
         sorted_by_freq = sorted(self._thought_vector.iteritems(), key=operator.itemgetter(1))
         target_term=sorted_by_freq[0][0]
-        self._add_term(target_term)
+        self._add_word(target_term)
         
         
     #evaluate the message (central processing) and the messenger (peripheral processing)
