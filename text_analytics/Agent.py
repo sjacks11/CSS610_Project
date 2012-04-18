@@ -407,6 +407,13 @@ class AgentBuilder(object) :
 
             # Call the passiveAgent's listenToSchpealFrom method passing in the proactiveAgent
             passiveAgent.listenToSchpealFrom(proactiveAgent)
+            
+        # Output the current Lexicon
+        self.lex.recordLexi()
+        
+    def outputLexicon(self):
+        # Create the output file, the path isn't required here if it was defined when the Lexicon object was created
+         self.lex.writeTxtLexicon("C:/temp/lexiconOutput.txt")
 
 ######################### EXECUTION CODE #########################
 
@@ -423,6 +430,15 @@ for i in theAgents:
 
 # Pair the agents up randomly
 AB.randomlyActivateAgents(theAgents)
+
+# Add a few more runs of themodel, in this case, four more
+AB.randomlyActivateAgents(theAgents)
+AB.randomlyActivateAgents(theAgents)
+AB.randomlyActivateAgents(theAgents)
+AB.randomlyActivateAgents(theAgents)
+
+# Generate the Lexicon output file
+AB.outputLexicon()
 
 
 print str(len(networkx.connected_component_subgraphs(agent_social_net)))
