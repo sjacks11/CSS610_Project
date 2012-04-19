@@ -78,10 +78,10 @@ class Lexicon(object) :
                 tempList = []
                 # Add all of the republican values to the output list
                 for i in self._lexR:
-                        tempList.append(repr(self._lexi['republican'][i]))
+                        tempList.append(repr(int(self.inter_document_frequency[i])))
                 # Add all of the democratic values to the output list
                 for i in self._lexD:
-                        tempList.append(repr(self._lexi['democrat'][i]))
+                        tempList.append(repr(int(self.inter_document_frequency[i])))
 
                 # Add these values to the list
                 self._lexOutput.append(tempList)
