@@ -15,7 +15,7 @@ class Lexicon(object) :
 	def __init__(self,cloudsize=20,vector_size=20, filePath = None) :
 		self.cloudsize=cloudsize
 		self._lexi={}
-
+		self._header_printed = False
 		# The path where the lexicon will be written.
 		# This should be a txt file, but Python doesn't care what you call it
 		self._filePath = filePath
@@ -61,13 +61,23 @@ class Lexicon(object) :
                 tempList = list(self._lexR)
                 tempList.extend(self._lexD)
                 self._lexOutput.append(tempList)
+		
 	
 	def get_idf_vector(self) : return self.inter_document_frequency
 	def clear_idf_vector(self) : self.inter_document_frequency = {}
 	
+	def print_idf_vector(self) :
+		lst=sorted(self.inter_document_frequency.keys())
+		fout=open(self._filePath,'a')
+		writer=csv.writer(fout)
+		if not self._header_printed :
+			writer.writerow(lst)
+			self._header_printed=True
+		writer.writerow([self.inter_document_frequency[fld] for fld in lst])
+		fout.close()			
 	
 	def remove_from_idf(self,term=None) :
-		self.inter_document_frequency[term]-=1
+		if self.inter_document_frequency[term] > 0 : self.inter_document_frequency[term]-=1
 	
 	def add_to_idf(self,term=None) :
 		self.inter_document_frequency[term]+=1
@@ -77,12 +87,14 @@ class Lexicon(object) :
                 # Add the current lexicon values to a temp list
                 tempList = []
                 # Add all of the republican values to the output list
+		"""
                 for i in self._lexR:
                         tempList.append(repr(self._lexi['republican'][i]))
                 # Add all of the democratic values to the output list
                 for i in self._lexD:
                         tempList.append(repr(self._lexi['democrat'][i]))
-
+		"""
+		
                 # Add these values to the list
                 self._lexOutput.append(tempList)
 
@@ -98,7 +110,7 @@ class Lexicon(object) :
                         outputfilename = self._filePath
                         
                 # Open the specified file for writing
-                fout=open(outputfilename,'w+')
+                fout=open(outputfilename,'a')
 
                 # Go through each record in the exising output list
                 for i in self._lexOutput:

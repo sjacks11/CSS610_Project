@@ -243,7 +243,7 @@ class AgentBuilder(object) :
         self.uidgen=UID()
         self.strategy=polarity_strategy
         self.ego_involvement_strategy=ego_involvement_strategy
-        self.lex=Lexicon.Lexicon(lexicon_size,agent_vector_size)
+        self.lex=Lexicon.Lexicon(lexicon_size,agent_vector_size,filePath='/Users/johngugliotti/Dev/pydev/CSS610_Project/data/idf.csv')
         self.__numAgents = 0
         self.__networkType = "" # Valid types are: ErdosRenyi, Lattice, and RealWorld - all other values are treated as no-network requested
 
@@ -413,7 +413,9 @@ class AgentBuilder(object) :
         
     def outputLexicon(self):
         # Create the output file, the path isn't required here if it was defined when the Lexicon object was created
-         self.lex.writeTxtLexicon("C:/temp/lexiconOutput.txt")
+         #self.lex.writeTxtLexicon("C:/temp/lexiconOutput.txt")
+         print 'print'
+         self.lex.print_idf_vector()
 
 ######################### EXECUTION CODE #########################
 
@@ -432,13 +434,15 @@ for i in theAgents:
 AB.randomlyActivateAgents(theAgents)
 
 # Add a few more runs of themodel, in this case, four more
-AB.randomlyActivateAgents(theAgents)
-AB.randomlyActivateAgents(theAgents)
-AB.randomlyActivateAgents(theAgents)
-AB.randomlyActivateAgents(theAgents)
+limit=1000
+i=0
+while i < limit :
+    AB.randomlyActivateAgents(theAgents)
+    AB.outputLexicon()
+    i+=1
 
 # Generate the Lexicon output file
-AB.outputLexicon()
+
 
 
 print str(len(networkx.connected_component_subgraphs(agent_social_net)))
