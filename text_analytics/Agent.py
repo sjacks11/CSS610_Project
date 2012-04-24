@@ -3,6 +3,8 @@ import math
 import Lexicon
 import networkx
 import operator
+import csv
+import util
 """
 An Agent is the encapsulation of an personal identity and an opinion - represented as a vector
 
@@ -71,12 +73,16 @@ class Agent(object) :
     def get_thought_vector(self) :
         return self._thought_vector
     def reinforce_my_position(self) :
+        #if True : return
         """increase the frequency of the lowest frequency term"""
         sorted_by_freq = sorted(self._thought_vector.iteritems(), key=operator.itemgetter(1))
         target_term=sorted_by_freq[0][0]
         self._add_word(target_term)
-        
-        
+    
+    def get_normalized_thought_vector(self) :
+        norm_vector=self.lexicon.normalize_vector(self.get_thought_vector())
+        return norm_vector
+
     #evaluate the message (central processing) and the messenger (peripheral processing)
     def listenToSchpealFrom(self,talkingAgent) :
         global debug
@@ -105,34 +111,39 @@ class Agent(object) :
         if change_direction != NON_COMMITMENT :
             other_agent_words=talkingAgent.get_thought_vector().keys()
             my_words=self.get_thought_vector().keys()            
-            ivector={}
-            dvector={}
+            intersection_vector={}
+            difference_vector={}
             
-            # F O R M   S E T S   F O R   D I F F E R E N C E   A N D   I N T E R S E C T I O N          
-            #difference = other_agent_words \ my_words if I'm moving closer to your opinion
+            # F O R M   S E T S   F O R   D I F F E R E N C E   A N D   I N T E R S E C T I O N
+            #   DIFFERENCE SET
+            #difference set = other_agent_words \ my_words if I'm moving closer to your opinion
             if change_direction == ASSIMILATE : 
                 difference=set(other_agent_words).difference(set(my_words))
-                for t in difference : dvector[t]=talkingAgent.get_thought_vector()[t]
-            else : #difference is my words \ other agent's words
+                for t in difference : difference_vector[t]=talkingAgent.get_thought_vector()[t]
+            else : #difference set is my words \ other agent's words if I'm moving further away from your opinion
                 difference=set(my_words).difference(set(other_agent_words))
-                for t in difference : dvector[t]=self.get_thought_vector()[t]
+                for t in difference : difference_vector[t]=self.get_thought_vector()[t]
             
+            #   INTERSECTION SET
             #intersection = other_agent_words INTERSECT my_words
             intersection=set(other_agent_words).intersection(set(my_words))
             
             if len(intersection) == 0 or len(difference) == 0 :
-                print 'empty intersection'
-                self.reinforce_my_position()
                 #the case is that there's nothing in common at all - or everything in common
                 #therefore solidify my own beliefs - increment my highest frequency term and decrement my least frequent term
+                print 'empty intersection'
+                self.reinforce_my_position()
+            # E N D   F O R M   S E T S 
+
             else :                    
-                #get the hi-freq term in the difference set
-                sorted_by_freq = sorted(dvector.iteritems(), key=operator.itemgetter(1))
+                # I D E N T I F Y   T E R M S   T O   C H A N G E 
+                #get the highest frequency term in the difference set
+                sorted_by_freq = sorted(difference_vector.iteritems(), key=operator.itemgetter(1))
                 target_difference_term=sorted_by_freq.pop()[0]
                 
-                #get hi-freq term in the intersection set
-                for t in intersection : ivector[t]=talkingAgent.get_thought_vector()[t]
-                sorted_by_freq = sorted(ivector.iteritems(), key=operator.itemgetter(1))
+                #get highest frequency term in the intersection set
+                for t in intersection : intersection_vector[t]=talkingAgent.get_thought_vector()[t]
+                sorted_by_freq = sorted(intersection_vector.iteritems(), key=operator.itemgetter(1))
                 target_interection_term=sorted_by_freq.pop()[0]               # this breaks if len(intersection ) == 0 
     
                 if debug :
@@ -158,22 +169,34 @@ class Agent(object) :
         note the 'private' methods below to add or remove a word from the word cloud
         
         """
-        
+
+    
     def change_opinion(self,other_agent=None,direction=0.0) :
         """TODO inspect another agent's thoughts and change in the direction indicated """
         
     def _remove_word(self,term=None) :
-        if debug : print 'remove ' + term
+        
         if term in self._thought_vector :
-            self._thought_vector[term]-=1 
-            self.lexicon.remove_from_idf(term)
+            
+            if debug : fbefore=self._thought_vector[term]
+            if self._thought_vector[term] > 0 :
+                self._thought_vector[term]-=1.0
+                self.lexicon.remove_from_idf(term) #remove from IDF only if the terms removed from my vector
+            if debug : fafter=self._thought_vector[term]
+            if debug : print 'remove ' + term + ' ' + str(fbefore) + '-->' + str(fafter)
+            
+            
         else :
-            print 'term: ' + term + ' not in agent ' + str(self.getUID()) + "'s word cloud"
+            if debug : print 'term: ' + term + ' not in agent ' + str(self.getUID()) + "'s word cloud"
         
     def _add_word(self,term=None) :
-        if debug : print 'add ' + term
+        
+        
         if term not in self._thought_vector : self._thought_vector[term]=0
-        self._thought_vector[term]+=1
+        fbefore=self._thought_vector[term]
+        self._thought_vector[term]+=1.0
+        fafter=self._thought_vector[term]
+        if debug : print 'add ' + term + ' ' + str(fbefore) + '-->' + str(fafter)
         self.lexicon.add_to_idf(term)
 
     def getUID(self):
@@ -243,7 +266,7 @@ class AgentBuilder(object) :
         self.uidgen=UID()
         self.strategy=polarity_strategy
         self.ego_involvement_strategy=ego_involvement_strategy
-        self.lex=Lexicon.Lexicon(lexicon_size,agent_vector_size,filePath='/Users/johngugliotti/Dev/pydev/CSS610_Project/data/idf.csv')
+        self.lex=Lexicon.Lexicon(lexicon_size,agent_vector_size,filePath='/Users/johngugliotti/Dev/pydev/CSS610_Project/data/'+util.get_bucket_name('idf_out'))
         self.__numAgents = 0
         self.__networkType = "" # Valid types are: ErdosRenyi, Lattice, and RealWorld - all other values are treated as no-network requested
 
@@ -416,20 +439,24 @@ class AgentBuilder(object) :
          #self.lex.writeTxtLexicon("C:/temp/lexiconOutput.txt")
          print 'print'
          self.lex.print_idf_vector()
+         
+    
 
 ######################### EXECUTION CODE #########################
 
 # Create an AgentBuilder object
 AB = AgentBuilder()
+agent_vector_path='/Users/johngugliotti/Dev/pydev/CSS610_Project/data/'+util.get_bucket_name('cluster_input')
 
 # Request agents from AB. The createAgents methods expects to see a number of agents and a type of Network to create.
 theAgents,agent_social_net = AB.createAgents(50,"ErdosRenyi")
 print str(len(networkx.connected_component_subgraphs(agent_social_net)))
 
 # Print out the agents to see what is going on with them
+"""
 for i in theAgents:
     print "Agent " +str(i.getUID()) + " has a lattitude_of_acceptance of " + str(i.lattitude_of_acceptance) + ", a lattitude_of_rejection of " + str(i.lattitude_of_rejection) + ", a get_thought_vector of " + str(i.get_thought_vector()) + ", and a getSocialNetwork of " + str(i.getSocialNetwork())
-
+"""
 # Pair the agents up randomly
 AB.randomlyActivateAgents(theAgents)
 
@@ -440,6 +467,30 @@ while i < limit :
     AB.randomlyActivateAgents(theAgents)
     AB.outputLexicon()
     i+=1
+    
+
+agent_vectors=[]
+fout=open(agent_vector_path,'wb')
+writer=csv.writer(fout)
+for a in theAgents :
+    agent_vectors.append(a.get_normalized_thought_vector())
+lst=sorted(agent_vectors[0].keys())
+writer.writerow(lst)
+for v in agent_vectors :
+    vout=[]
+    for t in lst :
+        if t in v : vout.append(v[t])
+        else : vout.append(0.0)
+    writer.writerow(vout)
+fout.close()
+
+print "agent vectors"
+for a in theAgents :
+    print str(a.get_thought_vector())
+
+#TODO - write agent normalized vectors to the output path
+
+    
 
 # Generate the Lexicon output file
 

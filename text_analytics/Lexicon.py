@@ -77,10 +77,18 @@ class Lexicon(object) :
 		fout.close()			
 	
 	def remove_from_idf(self,term=None) :
+		
+		fbefore=(self.inter_document_frequency[term])
 		if self.inter_document_frequency[term] > 0 : self.inter_document_frequency[term]-=1
-	
+		fafter=(self.inter_document_frequency[term])
+		print 'remove idf: ' + str(fbefore) + '-->' + str(fafter)
+		
 	def add_to_idf(self,term=None) :
-		self.inter_document_frequency[term]+=1
+		if term not in self.inter_document_frequency : self.inter_document_frequency[term]=0
+		fbefore=self.inter_document_frequency[term]
+		self.inter_document_frequency[term]+=1.0
+		fafter=self.inter_document_frequency[term]
+		print 'idf: ' + str(fbefore) + '-->' + str(fafter)
 		
         def recordLexi(self):
                 # This method allows the user to save the current Lexicon values to the _lexOutput list of lists which is used by the writeTxtLexicon method
@@ -133,10 +141,10 @@ class Lexicon(object) :
 		#calculate term frequencies for each document
 		for t in vector1 :
 			if t not in tf_idf_1 : tf_idf_1[t]=0
-			tf_idf_1[t]+=1
+			tf_idf_1[t]+=1.0
 		for t in vector2 :
 			if t not in tf_idf_2 : tf_idf_2[t]=0
-			tf_idf_2[t]+=1
+			tf_idf_2[t]+=1.0
 		#calculate tf_idf vector values for each document
 		for t in tf_idf_1 :
 			if self.inter_document_frequency[t]==0.0 :
@@ -161,21 +169,21 @@ class Lexicon(object) :
 		dp=0.0
 		m1=0.0
 		m2=0.0
-		ci=0
+		ci=0.0
 		for k in keyset :
 			#print str(k)
 			dp+=(tf_idf_2[k]*tf_idf_1[k])
-			ci+=1
+			ci+=1.0
 		#print str(len(keyset)) + ' items in common, len of .product: ' + str(ci)
-		ci=0
+		ci=0.0
 		for t in tf_idf_1 :
 			m1+=math.pow(tf_idf_1[t],2.0)
-			ci+=1
+			ci+=1.0
 		#print 'len of m1: ' + str(ci) + str(sorted(list(tf_idf_1.values())))
-		ci=0
+		ci=0.0
 		for t in tf_idf_2 :
 			m2+=math.pow(tf_idf_2[t],2.0)
-			ci+=1
+			ci+=1.0
 		#print 'len of m2: ' + str(ci)
 		
 		#print 'dotprod=' + str(dp) + ' ' +  'm1=' + ' ' + str(m1) + ' ' +  'm2=' + str(m2)
@@ -189,8 +197,34 @@ class Lexicon(object) :
 		intersect=s1.intersection(s2) 
 		union=s1.union(s2)
 		return 1.0-(1.0*len(intersect)/len(union)*1.0)
-
-
+	
+	def normalize_vector(self,vector={}) :
+		print str(vector)
+		
+		for t in self.inter_document_frequency :
+			print str(vector)
+			if t not in vector : vector[t]=0.0
+			else :
+				if self.inter_document_frequency [t]>0 :vector[t] = 1.0*vector[t]/self.inter_document_frequency [t]
+				else : vector[t]=0.0
+		
+		return vector
+	
+	def euclidean_distance(self,vector1={},vector2={}) :
+		vector1=self.normalize_vector(vector1)
+		vector2=self.normalize_vector(vector2)
+		keys=sorted(vector1.keys())
+		bt=0.0
+		for k in keys : bt+= math.pow((vector1[k]-vector2[k]),2.0)
+		return math.sqrt(bt)
+	
+	def get_empty_vector(self) :
+		vector={}
+		for t in self.inter_document_frequency :
+			vector[t]=0
+		return vector
+		
+		
 	def politicalization_matrix(self,vector={}) :
 		rep=0
 		dem=0
@@ -219,8 +253,8 @@ class Lexicon(object) :
 				j=random.randint(0,len(ka)-1)
 				t=ka[j]
 			if t not in term_vector : term_vector[t]=0.0
-			term_vector[t]+=1
-			self.inter_document_frequency[t]+=1
+			term_vector[t]+=1.0
+			self.inter_document_frequency[t]+=1.0
 		return term_vector 		
 		
 	def get_random_opinion(self, wordcount=20) :
@@ -234,8 +268,8 @@ class Lexicon(object) :
 			print str(rint) + ' ' + str(len(self._randomorder))
 			t = self._randomorder[rint]    #don't care about duplicates
 			if t not in output : output[t]=0.0
-			output[t]+=1
-			self.inter_document_frequency[t]+=1
+			output[t]+=1.0
+			self.inter_document_frequency[t]+=1.0
 		return output
 
 	def get_numeric_position(self,wordcloud=[]) :
