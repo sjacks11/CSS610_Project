@@ -440,13 +440,29 @@ class AgentBuilder(object) :
          print 'print'
          self.lex.print_idf_vector()
          
+    def outputTFIDF(self,Agents):
+        agent_vector_path='c:/temp/CSS610/'+util.get_bucket_name('cluster_input')
+        agent_vectors=[]
+        fout=open(agent_vector_path,'wb')
+        writer=csv.writer(fout)
+        for a in Agents :
+            agent_vectors.append(a.get_normalized_thought_vector())
+        lst=sorted(agent_vectors[0].keys())
+        writer.writerow(lst)
+        for v in agent_vectors :
+            vout=[]
+            for t in lst :
+                if t in v : vout.append(v[t])
+                else : vout.append(0.0)
+            writer.writerow(vout)
+        fout.close()
+         
     
 
 ######################### EXECUTION CODE #########################
 
 # Create an AgentBuilder object
 AB = AgentBuilder()
-agent_vector_path='/Users/johngugliotti/Dev/pydev/CSS610_Project/data/'+util.get_bucket_name('cluster_input')
 
 # Request agents from AB. The createAgents methods expects to see a number of agents and a type of Network to create.
 theAgents,agent_social_net = AB.createAgents(50,"ErdosRenyi")
@@ -458,9 +474,6 @@ for i in theAgents:
     print "Agent " +str(i.getUID()) + " has a lattitude_of_acceptance of " + str(i.lattitude_of_acceptance) + ", a lattitude_of_rejection of " + str(i.lattitude_of_rejection) + ", a get_thought_vector of " + str(i.get_thought_vector()) + ", and a getSocialNetwork of " + str(i.getSocialNetwork())
 """
 # Pair the agents up randomly
-AB.randomlyActivateAgents(theAgents)
-
-# Add a few more runs of themodel, in this case, four more
 limit=1000
 i=0
 while i < limit :
@@ -468,21 +481,7 @@ while i < limit :
     AB.outputLexicon()
     i+=1
     
-
-agent_vectors=[]
-fout=open(agent_vector_path,'wb')
-writer=csv.writer(fout)
-for a in theAgents :
-    agent_vectors.append(a.get_normalized_thought_vector())
-lst=sorted(agent_vectors[0].keys())
-writer.writerow(lst)
-for v in agent_vectors :
-    vout=[]
-    for t in lst :
-        if t in v : vout.append(v[t])
-        else : vout.append(0.0)
-    writer.writerow(vout)
-fout.close()
+AB.outputTFIDF(theAgents)
 
 print "agent vectors"
 for a in theAgents :
